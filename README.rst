@@ -1,5 +1,5 @@
-Decision-Theoretic Meta-Learning: Versatile and Flexible Amortization of Few-Shot Learning
-==========================================================================================
+Meta-Learning Probabilistic Inference For Prediction
+====================================================
 
 This repository implements the models and algorithms necessary to reproduce the experiments carried out in the paper
 `Meta-Learning Probabilistic Inference For Prediction, Gordon and Bronskill et al. <https://arxiv.org/abs/1805.09921>`_
