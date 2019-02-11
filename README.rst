@@ -2,7 +2,7 @@ Decision-Theoretic Meta-Learning: Versatile and Flexible Amortization of Few-Sho
 ==========================================================================================
 
 This repository implements the models and algorithms necessary to reproduce the experiments carried out in the paper
-`Decision-Theoretic Meta-Learning: Versatile and Flexible Amortization of Few-Shot Learning, Gordon and Bronskill et al. <https://arxiv.org/abs/1805.09921>`_.
+`Meta-Learning Probabilistic Inference For Prediction, Gordon and Bronskill et al. <https://arxiv.org/abs/1805.09921>`_
 It includes code for running few-shot classification experiments with Omniglot and miniImageNet, as well as for reproducing
 the ShapeNet view reconstruction experiments.
 
@@ -53,7 +53,7 @@ Citation
 If you use this code for your research, please cite our `paper <https://arxiv.org/abs/1805.09921>`_:
 ::
   @article{gordon2018decision,
-    title={Decision-Theoretic Meta-Learning: Versatile and Efficient Amortization of Few-Shot Learning},
+    title={Meta-Learning Probabilistic Inference For Prediction},
     author={Gordon, Jonathan and Bronskill, John and Bauer, Matthias and Nowozin, Sebastian and Turner, Richard E},
     journal={arXiv preprint arXiv:1805.09921},
     year={2018}
