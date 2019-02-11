@@ -58,7 +58,7 @@ TensorFlow Network Support Functions
 """
 
 
-def conv2d_pool_block(inputs, use_batch_norm, dropout_keep_prob, name):
+def conv2d_pool_block(inputs, use_batch_norm, dropout_keep_prob, pool_padding, name):
     """
     A macro function that implements the following in sequence:
     - conv2d
@@ -69,6 +69,7 @@ def conv2d_pool_block(inputs, use_batch_norm, dropout_keep_prob, name):
     :param inputs: batch of feature maps.
     :param use_batch_norm: whether to use batch normalization or not.
     :param dropout_keep_prob: keep probability parameter for dropout.
+    :param pool_padding: type of padding to use on the pooling operation.
     :param name: first part of the name used to scope this sequence of operations.
     :return: the processed batch of feature maps.
     """
@@ -85,8 +86,8 @@ def conv2d_pool_block(inputs, use_batch_norm, dropout_keep_prob, name):
 
     if use_batch_norm:
         h = tf.contrib.layers.batch_norm(
-            inputs=h, 
-            epsilon=1e-5, 
+            inputs=h,
+            epsilon=1e-5,
             scope=(name + '_batch_norm'),
             reuse=tf.AUTO_REUSE)
 
@@ -94,43 +95,7 @@ def conv2d_pool_block(inputs, use_batch_norm, dropout_keep_prob, name):
 
     h = tf.nn.dropout(x=h, keep_prob=dropout_keep_prob, name=(name + '_dropout'))
 
-    h = tf.layers.max_pooling2d(inputs=h, pool_size=[2, 2], strides=2, name=(name + '_pool'))
-
-    return h
-
-
-def dense_block(inputs, output_size, use_batch_norm, dropout_keep_prob, name):
-    """
-    A macro function that implements the following in sequence:
-    - dense layer
-    - batch_norm
-    - relu activation
-    - dropout
-    :param inputs: batch of inputs.
-    :param output_size: dimensionality of the output.
-    :param use_batch_norm: whether to use batch normalization or not.
-    :param dropout_keep_prob: keep probability parameter for dropout.
-    :param name: first part of the name used to scope this sequence of operations.
-    :return: batch of outputs.
-    """
-    h = tf.layers.dense(
-        inputs=inputs,
-        units=output_size,
-        kernel_initializer=xavier_initializer(uniform=False),
-        use_bias=False,
-        name=(name + '_dense'),
-        reuse=tf.AUTO_REUSE)
-
-    if use_batch_norm:
-        h = tf.contrib.layers.batch_norm(
-            inputs=h, 
-            epsilon=1e-5, 
-            scope=(name + '_batch_norm'),
-            reuse=tf.AUTO_REUSE)
-
-    h = tf.nn.relu(features=h, name=(name + '_batch_relu'))
-
-    h = tf.nn.dropout(x=h, keep_prob=dropout_keep_prob, name=(name + '_dropout'))
+    h = tf.layers.max_pooling2d(inputs=h, pool_size=[2, 2], strides=2, padding=pool_padding, name=(name + '_pool'))
 
     return h
 
@@ -154,6 +119,7 @@ def dense_layer(inputs, output_size, activation, use_bias, name):
         activation=activation,
         name=name,
         reuse=tf.AUTO_REUSE)
+
 
 def conv2d_transpose_layer(inputs, filters, activation, name):
     """

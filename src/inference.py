@@ -2,6 +2,21 @@ import tensorflow as tf
 from utilities import dense_layer, sample_normal
 
 
+def inference_block(inputs, d_theta, output_units, name):
+    """
+    Three dense layers in sequence.
+    :param inputs: batch of inputs.
+    :param d_theta: dimensionality of the intermediate hidden layers.
+    :param output_units: dimensionality of the output.
+    :param name: name used to scope this operation.
+    :return: batch of outputs.
+     """
+    h = dense_layer(inputs, d_theta, tf.nn.elu, True, name + '1')
+    h = dense_layer(h, d_theta, tf.nn.elu, True, name + '2')
+    h = dense_layer(h, output_units, None, True, name + '3')
+    return h
+
+
 def infer_classifier(features, labels, d_theta, num_classes):
     """
     Infer a linear classifier by concatenating vectors for each class.
@@ -12,8 +27,6 @@ def infer_classifier(features, labels, d_theta, num_classes):
     :return: Dictionary containing output classifier layer (including means and
     :        log variances for weights and biases).
     """
-    # dense layer before pooling
-    pre_pooling = dense_layer(features, d_theta, None, True, 'pre_process_dense')
 
     classifier = {}
     class_weight_means = []
@@ -22,16 +35,15 @@ def infer_classifier(features, labels, d_theta, num_classes):
     class_bias_logvars = []
     for c in range(num_classes):
         class_mask = tf.equal(tf.argmax(labels, 1), c)
-        class_features = tf.boolean_mask(pre_pooling, class_mask)
+        class_features = tf.boolean_mask(features, class_mask)
         
         # Pool across dimensions
         nu = tf.expand_dims(tf.reduce_mean(class_features, axis=0), axis=0)
-        post_processed = __post_process(nu, d_theta)
 
-        class_weight_means.append(dense_layer(post_processed, d_theta, None, True, 'weight_mean'))
-        class_weight_logvars.append(dense_layer(post_processed, d_theta, None, True, 'weight_log_variance'))
-        class_bias_means.append(dense_layer(post_processed, 1, None, True, 'bias_mean'))
-        class_bias_logvars.append(dense_layer(post_processed, 1, None, True, 'bias_log_variance'))
+        class_weight_means.append(inference_block(nu, d_theta, d_theta, 'weight_mean'))
+        class_weight_logvars.append(inference_block(nu, d_theta, d_theta, 'weight_log_variance'))
+        class_bias_means.append(inference_block(nu, d_theta, 1, 'bias_mean'))
+        class_bias_logvars.append(inference_block(nu, d_theta, 1, 'bias_log_variance'))
 
     classifier['weight_mean'] = tf.transpose(tf.concat(class_weight_means, axis=0))
     classifier['bias_mean'] = tf.reshape(tf.concat(class_bias_means, axis=1), [num_classes, ])
@@ -70,16 +82,3 @@ def shapenet_inference(image_features, angles, d_theta, d_psi, num_samples):
 
     psi['psi_samples'] = sample_normal(psi['mu'], psi['log_variance'], num_samples)
     return psi
-
-
-def __post_process(pooled, units):
-    """
-    Process a pooled variable through 2 dense layers
-    :param pooled: tensor of rank (1 x num_features).
-    :param units: integer number of output features.
-    :return: tensor of rank (1 x units)
-    """
-    h = dense_layer(pooled, units, tf.nn.elu, True, 'post_process_dense_1')
-    h = dense_layer(h, units, tf.nn.elu, True, 'post_process_dense_2')
-
-    return h

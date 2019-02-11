@@ -36,7 +36,6 @@ class MiniImageNetData(object):
         self.image_height = 84
         self.image_width = 84
         self.image_channels = 3
-        self.samples_per_class_test = 15
 
         path_train = os.path.join(path, 'mini_imagenet_train.pkl')
         path_validation = os.path.join(path, 'mini_imagenet_val.pkl')
@@ -55,30 +54,31 @@ class MiniImageNetData(object):
     def get_image_channels(self):
         return self.image_channels
 
-    def __sample_batch(self, images, tasks_per_batch, shot, way):
+    def _sample_batch(self, images, tasks_per_batch, shot, way, eval_samples):
         """
         Sample a k-shot batch from images.
-        :param images: Data to sample from [n_classes, n_samples, h, w, c] (either of xTrain, xVal, xTest)
+        :param images: Data to sample from [way, samples, h, w, c] (either of train, val, test)
         :param tasks_per_batch: number of tasks to include in batch.
         :param shot: number of training examples per class.
         :param way: number of classes per task.
+        :param eval_samples: number of evaluation samples to use.
         :return: A list [train_images, test_images, train_labels, test_labels]
 
         shapes:
-            * Images: [tasksPerBatch, classesPerTask*samplesPerClassTrain/Test, h, w, c]
-            * Labels: [tasksPerBatch, classesPerTask*samplesPerClassTrain/Test, classesPerTask]
+            * Images: [tasks_per_batch, way * (shot or eval_samples), h, w, c]
+            * Labels: [tasks_per_batch, way * (shot or eval_samples), way]
                       (one-hot encoded in last dim)
         """
 
-        samples_per_class = shot + self.samples_per_class_test
+        samples_per_class = shot + eval_samples
 
         # Set up empty arrays
         train_images = np.empty((tasks_per_batch, way, shot, self.image_height, self.image_width,
                                 self.image_channels), dtype=np.float32)
-        test_images = np.empty((tasks_per_batch, way, self.samples_per_class_test, self.image_height, self.image_width,
+        test_images = np.empty((tasks_per_batch, way, eval_samples, self.image_height, self.image_width,
                                 self.image_channels), dtype=np.float32)
         train_labels = np.empty((tasks_per_batch, way, shot), dtype=np.int32)
-        test_labels = np.empty((tasks_per_batch, way, self.samples_per_class_test), dtype=np.int32)
+        test_labels = np.empty((tasks_per_batch, way, eval_samples), dtype=np.int32)
 
         classes_idx = np.arange(images.shape[0])
         samples_idx = np.arange(images.shape[1])
@@ -106,9 +106,9 @@ class MiniImageNetData(object):
         train_images = train_images.reshape(
             (tasks_per_batch, way * shot, self.image_height, self.image_width, self.image_channels)) / 255.
         test_images = test_images.reshape(
-            (tasks_per_batch, way * self.samples_per_class_test, self.image_height, self.image_width, self.image_channels)) / 255.
+            (tasks_per_batch, way * eval_samples, self.image_height, self.image_width, self.image_channels)) / 255.
         train_labels = train_labels.reshape((tasks_per_batch, way * shot))
-        test_labels = test_labels.reshape((tasks_per_batch, way * self.samples_per_class_test))
+        test_labels = test_labels.reshape((tasks_per_batch, way * eval_samples))
 
         # labels to one-hot encoding
         train_labels = onehottify_2d_array(train_labels)
@@ -116,7 +116,7 @@ class MiniImageNetData(object):
 
         return [train_images, test_images, train_labels, test_labels]
 
-    def __shuffle_batch(self, train_images, train_labels):
+    def _shuffle_batch(self, train_images, train_labels):
         """
         Randomly permute the order of the second column
         :param train_images: [tasks_per_batch, way * shot, height, width, channels]
@@ -129,13 +129,14 @@ class MiniImageNetData(object):
             train_labels[i, ...] = train_labels[i, permutation, ...]
         return train_images, train_labels
 
-    def get_batch(self, source, tasks_per_batch, shot, way):
+    def get_batch(self, source, tasks_per_batch, shot, way, eval_samples):
         """
         Returns a batch of tasks from miniImageNet. Values are np.float32 and scaled to [0,1]
         :param source: one of `train`, `test`, `validation` (i.e. from which classes to pick)
         :param tasks_per_batch: number of tasks to include in batch.
         :param shot: number of training examples per class.
         :param way: number of classes per task.
+        :param eval_samples: number of evaluation samples to use.
         :return: [train_images, test_images, train_labels, test_labels]
 
         shapes:
@@ -152,8 +153,9 @@ class MiniImageNetData(object):
         elif source == 'test':
             images = self.test_set
 
-        train_images, test_images, train_labels, test_labels = self.__sample_batch(images, tasks_per_batch, shot, way)
+        train_images, test_images, train_labels, test_labels = self._sample_batch(images, tasks_per_batch, shot, way,
+                                                                                  eval_samples)
 
-        train_images, train_labels = self.__shuffle_batch(train_images, train_labels)
+        train_images, train_labels = self._shuffle_batch(train_images, train_labels)
 
         return [train_images, test_images, train_labels, test_labels]
