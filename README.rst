@@ -52,7 +52,7 @@ Citation
 
 If you use this code for your research, please cite our `paper <https://arxiv.org/abs/1805.09921>`_:
 ::
-  @article{gordon2018decision,
+  @article{gordon2018meta,
     title={Meta-Learning Probabilistic Inference For Prediction},
     author={Gordon, Jonathan and Bronskill, John and Bauer, Matthias and Nowozin, Sebastian and Turner, Richard E},
     journal={arXiv preprint arXiv:1805.09921},
