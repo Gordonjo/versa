@@ -72,7 +72,7 @@ def shapenet_inference(image_features, angles, d_theta, d_psi, num_samples):
 
     # Pool across dimensions
     nu = tf.expand_dims(tf.reduce_mean(h, axis=0), axis=0)
-    post_processed = __post_process(nu, d_psi)
+    post_processed = _post_process(nu, d_psi)
 
     # Compute means and log variances for the parameter
     psi = {}
@@ -82,3 +82,16 @@ def shapenet_inference(image_features, angles, d_theta, d_psi, num_samples):
 
     psi['psi_samples'] = sample_normal(psi['mu'], psi['log_variance'], num_samples)
     return psi
+
+
+def _post_process(pooled, units):
+    """
+    Process a pooled variable through 2 dense layers
+    :param pooled: tensor of rank (1 x num_features).
+    :param units: integer number of output features.
+    :return: tensor of rank (1 x units)
+    """
+    h = dense_layer(pooled, units, tf.nn.elu, True, 'post_process_dense_1')
+    h = dense_layer(h, units, tf.nn.elu, True, 'post_process_dense_2')
+
+    return h

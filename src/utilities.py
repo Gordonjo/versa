@@ -100,6 +100,42 @@ def conv2d_pool_block(inputs, use_batch_norm, dropout_keep_prob, pool_padding, n
     return h
 
 
+def dense_block(inputs, output_size, use_batch_norm, dropout_keep_prob, name):
+    """
+    A macro function that implements the following in sequence:
+    - dense layer
+    - batch_norm
+    - relu activation
+    - dropout
+    :param inputs: batch of inputs.
+    :param output_size: dimensionality of the output.
+    :param use_batch_norm: whether to use batch normalization or not.
+    :param dropout_keep_prob: keep probability parameter for dropout.
+    :param name: first part of the name used to scope this sequence of operations.
+    :return: batch of outputs.
+    """
+    h = tf.layers.dense(
+        inputs=inputs,
+        units=output_size,
+        kernel_initializer=xavier_initializer(uniform=False),
+        use_bias=False,
+        name=(name + '_dense'),
+        reuse=tf.AUTO_REUSE)
+
+    if use_batch_norm:
+        h = tf.contrib.layers.batch_norm(
+            inputs=h,
+            epsilon=1e-5,
+            scope=(name + '_batch_norm'),
+            reuse=tf.AUTO_REUSE)
+
+    h = tf.nn.relu(features=h, name=(name + '_batch_relu'))
+
+    h = tf.nn.dropout(x=h, keep_prob=dropout_keep_prob, name=(name + '_dropout'))
+
+    return h
+
+
 def dense_layer(inputs, output_size, activation, use_bias, name):
     """
     A simple dense layer.

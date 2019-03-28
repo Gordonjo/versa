@@ -1,24 +1,16 @@
 """
 Script to reproduce the few-shot view reconstruction results in:
-"Decision-Theoretic Meta-Learning: Versatile and Efficient Amortization of Few-Shot Learning"
+"Meta-Learning Probabilistic Inference For Prediction"
 https://arxiv.org/pdf/1805.09921.pdf
 
 The following command lines will reproduce the published results within error-bars:
 
-Planes
-------
 python train_view_reconstruction.py
 python evaluate_view_reconstruction.py -m ./checkpoint/<date-time>/fully_trained
-
-Chairs
-------
-python train_view_reconstruction.py --iterations 200000 --type chair
-python evaluate_view_reconstruction.py --type chair -m ./checkpoint/<date-time>/fully_trained
 
 where <date-time> is the specific time stamped folder where train_view_reconstruction.py saves the model.
 
 """
-
 
 from __future__ import absolute_import
 from __future__ import division
@@ -26,11 +18,10 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 import argparse
-from features import extract_features, generate_views
+from features import extract_features_shapenet, generate_views
 from inference import shapenet_inference
 from utilities import print_and_log, get_log_files, gaussian_log_density
 from data import get_data
-
 
 """
 parse_command_line: command line parser
@@ -39,34 +30,23 @@ parse_command_line: command line parser
 
 def parse_command_line():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--type", "-t", choices=["plane", "chair"], default="plane",
-                        help="Model type.") 
-    parser.add_argument("--d_theta", type=int, default=256,
-                        help="Shared parameters dimensionality.")
-    parser.add_argument("--d_psi", type=int, default=256, 
-                        help="Adaptation input dimensionality.")
-    parser.add_argument("--shot", type=int, default=1,
-                        help="Number of training examples.")
-    parser.add_argument("--tasks_per_batch", type=int, default=8,
-                        help="Number of tasks per batch.")
-    parser.add_argument("--samples", type=int, default=1,
-                        help="Number of samples from q.")
-    parser.add_argument("--learning_rate", "-lr", type=float, default=1e-4,
-                        help="Learning rate.")
-    parser.add_argument("--iterations", type=int, default=150000,
-                        help="Number of training iterations.")
-    parser.add_argument("--checkpoint_dir", "-c", default='./checkpoint',
-                        help="Directory to save trained models.")
-    parser.add_argument("--print_freq", type=int, default=200, 
-                        help="Frequency of summary results (in iterations).")
-    
+    parser.add_argument("--d_theta", type=int, default=256, help="Shared parameters dimensionality.")
+    parser.add_argument("--d_psi", type=int, default=256, help="Adaptation input dimensionality.")
+    parser.add_argument("--shot", type=int, default=1, help="Number of training examples.")
+    parser.add_argument("--tasks_per_batch", type=int, default=24, help="Number of tasks per batch.")
+    parser.add_argument("--samples", type=int, default=1, help="Number of samples from q.")
+    parser.add_argument("--learning_rate", "-lr", type=float, default=1e-4, help="Learning rate.")
+    parser.add_argument("--iterations", type=int, default=500000, help="Number of training iterations.")
+    parser.add_argument("--checkpoint_dir", "-c", default='./checkpoint', help="Directory to save trained models.")
+    parser.add_argument("--random_shot", default=False, action="store_true", help="Randomize the shot between 1 and shot.")
+    parser.add_argument("--print_freq", type=int, default=200, help="Frequency of summary results (in iterations).")
+
     args = parser.parse_args()
 
     return args
 
 
 def main(unused_argv):
-
     tf.logging.set_verbosity(tf.logging.ERROR)
 
     args = parse_command_line()
@@ -76,18 +56,18 @@ def main(unused_argv):
     print_and_log(logfile, "Options: %s\n" % args)
 
     # Load training and eval data
-    data = get_data('shapenet', data_type=args.type)
+    data = get_data("shapenet")
 
     # tf placeholders
     batch_train_images = tf.placeholder(tf.float32, [None,  # tasks per batch
                                                      None,  # shot
                                                      data.get_image_height(),
-                                                     data.get_image_width(), 
-                                                     data.get_image_channels()],  name='train_images')
+                                                     data.get_image_width(),
+                                                     data.get_image_channels()], name='train_images')
     batch_test_images = tf.placeholder(tf.float32, [None,  # tasks per batch
                                                     None,  # num test images
                                                     data.get_image_height(),
-                                                    data.get_image_width(), 
+                                                    data.get_image_width(),
                                                     data.get_image_channels()], name='test_images')
     batch_train_angles = tf.placeholder(tf.float32, [None,  # tasks per batch
                                                      None,  # shot
@@ -98,7 +78,7 @@ def main(unused_argv):
 
     def evaluate_task(inputs):
         train_images, train_angles, test_images, test_angles = inputs
-        inference_features_train = extract_features(images=train_images, output_size=args.d_theta,
+        inference_features_train = extract_features_shapenet(images=train_images, output_size=args.d_theta,
                                                     use_batch_norm=False, dropout_keep_prob=1.0)
         adaptation_params = shapenet_inference(inference_features_train, train_angles, args.d_theta,
                                                args.d_psi, args.samples)
@@ -112,9 +92,11 @@ def main(unused_argv):
             generated_images = generate_views(test_angles, adaptation_inputs)
             # Compute loss
             flat_images_gt = tf.reshape(test_images,
-                [-1, data.get_image_height() * data.get_image_width() * data.get_image_channels()])
+                                        [-1,
+                                         data.get_image_height() * data.get_image_width() * data.get_image_channels()])
             flat_images_gen = tf.reshape(generated_images,
-                [-1, data.get_image_height() * data.get_image_width() * data.get_image_channels()])
+                                         [-1,
+                                          data.get_image_height() * data.get_image_width() * data.get_image_channels()])
             log_var = tf.zeros_like(flat_images_gt)
             log_density = gaussian_log_density(flat_images_gt, flat_images_gen, log_var)
             sample_log_py.append(tf.expand_dims(log_density, 1))
@@ -147,8 +129,11 @@ def main(unused_argv):
         train_iteration_loss = []
         sess.run(tf.global_variables_initializer())
         while iteration < args.iterations:
+            train_shot = args.shot
+            if (args.random_shot):
+                train_shot = np.random.randint(low=1, high=(args.shot + 1))
             train_inputs, test_inputs, train_outputs, test_outputs = \
-                data.get_batch(source='train', tasks_per_batch=args.tasks_per_batch, shot=args.shot)
+                data.get_batch(source='train', tasks_per_batch=args.tasks_per_batch, shot=train_shot)
             feed_dict = {batch_train_images: train_inputs, batch_test_images: test_inputs,
                          batch_train_angles: train_outputs, batch_test_angles: test_outputs}
             _, log_py, iteration_loss = sess.run([train_step, log_likelihood, loss], feed_dict)
@@ -171,8 +156,9 @@ def main(unused_argv):
                     best_validation_loss = validation_loss
                     saver.save(sess=sess, save_path=checkpoint_path_validation)
 
-                print_and_log(logfile, 'Iteration: {}, Likelihood: {:5.3f}, Iteration-Train-Loss: {:5.3f},' 
-                              'Val-Loss: {:5.3f}'.format(iteration, log_py, train_average_loss, validation_loss))
+                print_and_log(logfile, 'Iteration: {}, Likelihood: {:5.3f}, Iteration-Train-Loss: {:5.3f},'
+                                       'Val-Loss: {:5.3f}'.format(iteration, log_py, train_average_loss,
+                                                                  validation_loss))
                 train_iteration_loss = []
 
             iteration += 1

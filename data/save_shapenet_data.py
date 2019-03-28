@@ -1,16 +1,28 @@
 """
 save_shapenet_data.py:
-    Script for saving the rendered ShapeNet images into a numpy file that is used as input in
+    Script for saving the rendered ShapeNet images into a set of numpy files that are used as input in
     train_view_reconstruction.py and evaluate_view_reconstruction.py.
 Usage instructions:
-    1. Download the two shapenet dataset files 02691156.zip and 03001627.zip
-       from https://drive.google.com/drive/folders/1x4EZFEE_bT9lvBu25ZnsMtV4LNKhYaG5?usp=sharing.
-    2. In the data directory (the directory that this file resides in), create a new directory called shapenet.
-    3. Unzip the two dataset files and place the conents in the shapenet directory.
+    1. In the data directory (the directory that this file resides in), create a new directory called shapenet.
+    2. Download the shapenet dataset file shapenet_data.tar.gz from:
+       https://drive.google.com/open?id=1Q9hiB2E90Ty7Oslrr84mTXyqysrNhWE-
+       and place it into the newly created shapenet directory.
+    3. Decompress two dataset file (tar -xvzf shapenet_data.tar.gz) and place the contents in the shapenet directory.
     5. From the data directory, run this script as follows:
        python save_shapenet_data.py
-    6. The result should be that a two files called shapenet_planes.npy and shapenet_chairs.npy
-       are created in the data directory.
+    6. The result should be that the following twelve files called are created in the data directory:
+        02691156.npy
+        02828884.npy
+        02933112.npy
+        02958343.npy
+        02992529.npy
+        03001627.npy
+        03211117.npy
+        03636649.npy
+        03691459.npy
+        04256520.npy
+        04379243.npy
+        04530566.npy
 
     Note: The created .npy files can only be used with the version of python that created it.
           In other words if you created the .npy file with python 2 it will not work with python 3
@@ -28,61 +40,40 @@ def get_subdirs(a_dir):
             if os.path.isdir(os.path.join(a_dir, name))]
 
 
-def load_pngs_and_save_as_npy(input_dir, save_file, model_type, size, convert_to_grayscale):
-    data = []
+def load_pngs(input_dir, data, size):
     items = get_subdirs(input_dir)
     for item_index, item in enumerate(items):
         print(item)
         item_images = []
-        # we have generated 36 orientations for each item
-        # but they are numbered 1-9 (with a single digit),
-        # and 10-35 (with 2 digits) and we want them in order
         instances = []
-         # There are 36 generated orientations for each item
-        if model_type == 'plane':
-            # Planes  are numbered 1-9 (with a single digit), and 10-35 (with 2 digits) and we want them in order.
-            for i in range(0, 10):
-                instances.append("model_normalized.obj-{0:1d}.png".format(i))
-            for i in range(10, 36):
-                instances.append("model_normalized.obj-{0:2d}.png".format(i))
-        elif model_type == 'chair':
-            # Chairs are numbered consistently with 2 digits.
-            for i in range(0, 36):
-                instances.append("{0:02d}.png".format(i))
-        else:
-            sys.exit("Unsupported model type (%s)." % model_type)
-            
+        # There are 36 generated orientations for each item
+        for i in range(0, 36):
+            instances.append("{0:02d}.png".format(i))
+
         for instance_index, instance in enumerate(instances):
             im = Image.open(os.path.join(item, instance))
-            if convert_to_grayscale:
-                im = im.convert("L")
             if size:
                 im = im.resize((size, size), resample=Image.LANCZOS)
-            if convert_to_grayscale:
-                image = np.array(im.getdata()).astype('float32').reshape(size, size) / 255. # grayscale image
-            else:
-                image = np.array(im.getdata()).astype('float32').reshape(size, size, 3) / 255. # colour image
+            image = np.array(im.getdata()).astype('float32').reshape(size, size) / 255.  # grayscale image
             item_images.append((image, item_index, instance_index))
 
         data.append(item_images)
 
-    np.save(save_file, np.array(data))
+    return data
 
 
 def main():
     data_dir = './shapenet'
-    planes_dir = '02691156'
-    chairs_dir = '03001627'
+    categories = ['02691156', '02828884', '02933112', '02958343', '02992529', '03001627', '03211117', '03636649',
+                  '03691459', '04256520', '04379243', '04530566']
 
-    print('Starting ShapeNet planes.')
-    load_pngs_and_save_as_npy(os.path.join(data_dir, planes_dir), './shapenet_planes.npy', 
-                              model_type='plane', size=32, convert_to_grayscale=True)
-    print('Finished ShapeNet planes')
-
-    print('Starting ShapeNet chairs.')
-    load_pngs_and_save_as_npy(os.path.join(data_dir, chairs_dir), 'shapenet_chairs.npy',
-                              model_type='chair', size=32, convert_to_grayscale=True)
-    print('Finished ShapeNet chairs')
+    print('Starting...')
+    for category in categories:
+        data = []
+        print('Working on category {0:s}'.format(category))
+        data = load_pngs(os.path.join(data_dir, category), data, size=32)
+        np.save('{0:s}.npy'.format(category), np.array(data))
+    print('Finished!')
 
 
 if __name__ == "__main__":

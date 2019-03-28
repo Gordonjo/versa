@@ -1,6 +1,6 @@
 """
 Script to reproduce the few-shot classification results in:
-"Decision-Theoretic Meta-Learning: Versatile and Efficient Amortization of Few-Shot Learning"
+"Meta-Learning Probabilistic Inference For Prediction"
 https://arxiv.org/pdf/1805.09921.pdf
 
 The following command lines will reproduce the published results within error-bars:
