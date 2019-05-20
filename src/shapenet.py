@@ -32,31 +32,35 @@ class ShapeNetData(object):
     """
         Class to handle ShapeNet dataset. Loads from numpy data as saved in data folder.
     """
-    def __init__(self, path, model_type, num_instances_per_item, train_fraction, val_fraction, seed):
+    def __init__(self, path, num_instances_per_item, train_fraction, val_fraction, seed, mode):
         """
         Initialize object to handle shapenet data
         :param path: directory of numpy file with preprocessed ShapeNet arrays.
-        :param model_type: type of model. Must be 'plane' or 'chair'.
         :param num_instances_per_item: Number of views of each model in the dataset.
         :param train_fraction: Fraction of models used for training.
         :param val_fraction: Fraction of models used for validation.
         :param seed: random seed for selecting data.
+        :param mode: indicates either train or test.
         """
         self.image_height = 32
         self.image_width = 32
         self.image_channels = 1
         self.angle_dimensionality = 3
+        self.has_validation_set = True
 
-        if model_type == 'plane':
-            path = os.path.join(path, 'shapenet_planes.npy')
-        elif model_type == 'chair':
-            path = os.path.join(path, 'shapenet_chairs.npy')
-        else:
-            sys.exit("Unsupported dataset type (%s)." % model_type)
+        # concatenate all the categories
+        categories = ['02691156', '02828884', '02933112', '02958343', '02992529', '03001627', '03211117',
+                      '03636649', '03691459', '04256520', '04379243', '04530566']
+        for category in categories:
+            file = os.path.join(path, '{0:s}.npy'.format(category))
+            if category == categories[0]: # first time through
+    	        data = np.load(file)
+            else:
+                data = np.concatenate((data, np.load(file)), axis=0)
 
-        data = np.load(path)
         self.instances_per_item = num_instances_per_item
         self.total_items = data.shape[0]
+        self.mode = mode
         train_size = (int) (train_fraction * self.total_items)
         val_size = (int) (val_fraction * self.total_items)
         print("Training Set Size = {0:d}".format(train_size))
@@ -72,6 +76,9 @@ class ShapeNetData(object):
         self.train_item_sets = np.max(self.train_item_indices)
         self.validation_item_sets = np.max(self.validation_item_indices)
         self.test_item_sets = np.max(self.test_item_indices)
+        if self.mode == 'test':
+            self.test_item_permutation = np.random.permutation(self.test_item_sets)
+            self.test_counter = 0
 
     def get_image_height(self):
         return self.image_height
@@ -84,6 +91,9 @@ class ShapeNetData(object):
 
     def get_angle_dimensionality(self):
         return self.angle_dimensionality
+
+    def get_has_validation_set(self):
+        return self.has_validation_set
 
     def get_batch(self, source, tasks_per_batch, shot):
         """
@@ -134,7 +144,11 @@ class ShapeNetData(object):
         :param num_train_instances: number of training images per class.
         :return: tuple containing train and test images and labels for a task.
         """
-        task_item = np.random.choice(np.unique(item_indices))
+        if self.mode == 'test':
+            task_item = self.test_item_permutation[self.test_counter]
+            self.test_counter = self.test_counter + 1
+        else:
+            task_item = np.random.choice(np.unique(item_indices))
         permutation = np.random.permutation(self.instances_per_item)
         item_images = images[np.where(item_indices == task_item)[0]][permutation]
         item_angles = angles[np.where(item_indices == task_item)[0]][permutation]
@@ -157,4 +171,3 @@ class ShapeNetData(object):
         images = np.reshape(np.array(images), (len(images), self.image_height, self.image_width, self.image_channels))
         indices, angles = np.array(item_indices), np.array(item_angles)
         return images, indices, angles
-
