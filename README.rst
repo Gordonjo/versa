@@ -52,10 +52,11 @@ Citation
 
 If you use this code for your research, please cite our `paper <https://arxiv.org/abs/1805.09921>`_:
 ::
-  @article{gordon2018decision,
-    title={Meta-Learning Probabilistic Inference For Prediction},
-    author={Gordon, Jonathan and Bronskill, John and Bauer, Matthias and Nowozin, Sebastian and Turner, Richard E},
-    journal={arXiv preprint arXiv:1805.09921},
-    year={2018}
-  }
 
+  @inproceedings{gordon2018metalearning,
+    title={Meta-Learning Probabilistic Inference for Prediction},
+    author={Jonathan Gordon and John Bronskill and Matthias Bauer and Sebastian Nowozin and Richard Turner},
+    booktitle={International Conference on Learning Representations},
+    year={2019},
+    url={https://openreview.net/forum?id=HkxStoC5F7},
+  }
