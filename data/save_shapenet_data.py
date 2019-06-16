@@ -5,12 +5,12 @@ save_shapenet_data.py:
 Usage instructions:
     1. In the data directory (the directory that this file resides in), create a new directory called shapenet.
     2. Download the shapenet dataset file shapenet_data.tar.gz from:
-       https://drive.google.com/open?id=1Q9hiB2E90Ty7Oslrr84mTXyqysrNhWE-
+       https://drive.google.com/file/d/1y_-FcpKwPCOihizbQG0XqRxbg8lDUekz/view?usp=sharing
        and place it into the newly created shapenet directory.
-    3. Decompress two dataset file (tar -xvzf shapenet_data.tar.gz) and place the contents in the shapenet directory.
+    3. Decompress the dataset file (tar -xvzf shapenet_data.tar.gz) and place the contents in the shapenet directory.
     5. From the data directory, run this script as follows:
        python save_shapenet_data.py
-    6. The result should be that the following twelve files called are created in the data directory:
+    6. The result should be that the following twelve files are created in the data directory:
         02691156.npy
         02828884.npy
         02933112.npy
